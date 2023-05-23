@@ -1,0 +1,62 @@
+version: '3'
+
+networks:
+    laravel_dockerize:
+
+services:
+    nginx:
+        image: nginx:stable-alpine
+        restart: unless-stopped
+        container_name: "${PROJECT_NAME}_nginx"
+        working_dir: /var/www/html
+        ports:
+            - "80:80"
+        volumes:
+            - ${APP_PATH}:/var/www/html
+            - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+        networks:
+            - laravel_dockerize
+        depends_on:
+            - mysql
+            - php
+
+    mysql:
+        image: mysql:${MYSQL_VERSION}
+        restart: unless-stopped
+        container_name: "${PROJECT_NAME}_mysql"
+        tty: true
+        ports:
+            - "3306:3306"
+        environment:
+            MYSQL_USER: ${MYSQL_USER}
+            MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+            MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+            SERVICE_TAGS: dev
+            SERVICE_NAME: mysql
+        volumes:
+            - ./mysql/data:/var/lib/mysql
+            - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+        networks:
+            - laravel_dockerize
+
+    php:
+        build:
+            context: .
+            dockerfile: ./Dockerfile
+            args:
+                - DOCKER_CONFIG_VERSION=${PHP_VERSION}
+        container_name: "${PROJECT_NAME}_php"
+        volumes:
+            - ${APP_PATH}:/var/www/html
+            - ./php/custom.ini:/usr/local/etc/php/conf.d/custom.ini
+        ports:
+            - "9000:9000"
+        networks:
+            - laravel_dockerize
+
+    redis:
+        image: redis:${REDIS_VERSION}
+        container_name: "${PROJECT_NAME}_redis"
+        networks:
+            - laravel_dockerize
+
